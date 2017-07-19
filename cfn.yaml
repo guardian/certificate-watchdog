@@ -62,9 +62,9 @@ Resources:
           Stage: !Ref Stage
           Stack: !Ref Stack
           App: !Ref App
-      Description: This project checks the certificates referenced in prism are up to date, otherwise warns the respective team owners.
+      Description: Checks the validity of ACM certificates
       Handler: com.gu.certw.Lambda::handler
-      MemorySize: 128
+      MemorySize: 256
       Role: !GetAtt ExecutionRole.Arn
       Runtime: java8
       Timeout: 60
@@ -72,8 +72,8 @@ Resources:
   DailyEvent:
     Type: AWS::Events::Rule
     Properties:
-      Description: Event sent to process the previous day of data
-      ScheduleExpression: cron(14 3 * * ? *)
+      Description: Event sent to trigger the certificate-watchdog lambda
+      ScheduleExpression: cron(0 10 * * ? *)
       Targets:
         - Id: Lambda
           Arn: !GetAtt Lambda.Arn
