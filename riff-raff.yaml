@@ -1,0 +1,19 @@
+stacks: [deploy]
+regions: [eu-west-1]
+
+deployments:
+  certificate-watchdog:
+    type: aws-lambda
+    parameters:
+      bucket: deploy-tools-dist
+      functionNames: [certificate-watchdog-]
+      fileName: certificate-watchdog.jar
+      prefixStack: false
+    dependencies: [certificate-watchdog-cfn]
+  certificate-watchdog-cfn:
+    type: cloud-formation
+    app: certificate-watchdog
+    parameters:
+      prependStackToCloudFormationStackName: false
+      cloudFormationStackName: certificate-watchdog
+      templatePath: cfn.yaml
