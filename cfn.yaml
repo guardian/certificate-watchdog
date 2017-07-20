@@ -20,6 +20,12 @@ Parameters:
     Description: Bucket where RiffRaff uploads artifacts on deploy
     Type: String
     Default: deploy-tools-dist
+  VpcId:
+    Description: VPC ID
+    Type: AWS::EC2::VPC::Id
+  Subnets:
+    Description: VPC's subnets
+    Type: List<AWS::EC2::Subnet::Id>
 Resources:
   ExecutionRole:
     Type: AWS::IAM::Role
@@ -33,22 +39,29 @@ Resources:
             Action: sts:AssumeRole
       Path: /
       Policies:
-        - PolicyName: logs
+        - PolicyName: email
           PolicyDocument:
             Statement:
               Effect: Allow
               Action:
-                - logs:CreateLogGroup
-                - logs:CreateLogStream
-                - logs:PutLogEvents
-              Resource: arn:aws:logs:*:*:*
-        - PolicyName: lambda
-          PolicyDocument:
-            Statement:
-              Effect: Allow
-              Action:
-                - lambda:InvokeFunction
+                - ses:SendEmail
               Resource: "*"
+        - PolicyName: vpc
+          PolicyDocument:
+            Statement:
+              Effect: Allow
+              Action:
+                - ec2:CreateNetworkInterface
+                - ec2:DescribeNetworkInterfaces
+                - ec2:DeleteNetworkInterface
+              Resource: "*"
+
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Open access to prism
+      VpcId: !Ref VpcId
+
   Lambda:
     Type: AWS::Lambda::Function
     Properties:
@@ -69,7 +82,10 @@ Resources:
       MemorySize: 256
       Role: !GetAtt ExecutionRole.Arn
       Runtime: java8
-      Timeout: 60
+      Timeout: 120
+      VpcConfig:
+        SubnetIds: !Ref Subnets
+        SecurityGroupIds: [!GetAtt LambdaSecurityGroup.GroupId]
 
   DailyEvent:
     Type: AWS::Events::Rule
