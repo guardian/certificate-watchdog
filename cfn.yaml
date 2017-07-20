@@ -62,6 +62,8 @@ Resources:
           Stage: !Ref Stage
           Stack: !Ref Stack
           App: !Ref App
+          PrismDomain: !Ref PrismDomain
+          SenderEmail: !Ref SenderEmail
       Description: Checks the validity of ACM certificates
       Handler: com.gu.certw.Lambda::handler
       MemorySize: 256
