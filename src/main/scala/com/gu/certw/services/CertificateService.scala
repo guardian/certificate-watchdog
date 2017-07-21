@@ -3,14 +3,13 @@ package com.gu.certw.services
 import java.net.URI
 import java.time.ZonedDateTime
 
-import com.amazonaws.services.simpleemail.AmazonSimpleEmailService
 import com.amazonaws.services.simpleemail.model._
-import com.gu.certw.{Env, Logging}
+import com.gu.certw.{ Env, Logging }
 import com.gu.certw.models._
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{ JsPath, Json, Reads }
 
-class CertificateService(httpClient: HttpClient, ses: AmazonSimpleEmailService) extends Logging {
+object CertificateService extends Logging {
 
   private implicit val prismAcmCertificateParser: Reads[Certificate] = (
     (JsPath \ "arn").read[String] and
@@ -21,8 +20,8 @@ class CertificateService(httpClient: HttpClient, ses: AmazonSimpleEmailService) 
     (JsPath \ "meta" \ "origin" \ "ownerId").read[String] and
     (JsPath \ "meta" \ "origin" \ "accountName").read[String])(Certificate.apply _)
 
-  def listCertificates: List[Certificate] = {
-    val body = httpClient.get(new URI(s"https://${Env().prismDomain}/acm-certificates"))
+  def listCertificates(env: Env, httpClient: HttpClient): List[Certificate] = {
+    val body = httpClient.get(new URI(s"https://${env.prismDomain}/acm-certificates"))
     (Json.parse(body) \ "data" \ "acmCertificates").as[List[Certificate]]
   }
 
@@ -32,14 +31,14 @@ class CertificateService(httpClient: HttpClient, ses: AmazonSimpleEmailService) 
     .filter(cert => activeOrExpired.contains(cert.status))
     .filter(_.notAfter.forall(_.isBefore(now.plusDays(29))))
 
-  def sendEmails(certificates: List[Certificate]): Unit = {
-    certificates.foreach { certificate =>
+  def generateEmails(certificates: List[Certificate]): List[Email] = {
+    certificates.map { certificate =>
       val to = s"${certificate.ownerId}@theguardian.com"
       val resources = if (certificate.inUseBy.isEmpty) {
         "This certificate isn't currently used by any resources (ELB, ALB ...)"
       } else {
         val resourceList = certificate.inUseBy.map(r => s" - $r").mkString("\n")
-        s"Used by the following resources: $resourceList"
+        s"Used by the following resources:\n$resourceList"
       }
       val message =
         s"""
@@ -50,24 +49,15 @@ class CertificateService(httpClient: HttpClient, ses: AmazonSimpleEmailService) 
            |Valid until: ${certificate.notAfter.getOrElse("unknown")}
            |Status: ${certificate.status}
            |Owned by: ${certificate.ownerId}
-           |Used by the following resources:
            |$resources
            |
-           |Please check if that certicate is still needed and renew it as soon as possible
-         """.stripMargin
+           |Please check if this certificate is still needed and renew it as soon as possible
+           |""".stripMargin
 
-      logger.info(s"Sending email about ${certificate.domainName} ${certificate.arn}")
+      val subject = s"[Urgent] SSL/TLS Certificate for ${certificate.domainName} is about to expire"
 
-      val request = new SendEmailRequest()
-        .withDestination(new Destination().withToAddresses(to))
-        .withSource(Env().senderEmail)
-        .withMessage(new Message()
-          .withSubject(new Content(s"[Urgent] SSL/TLS Certificate for ${certificate.domainName} is about to expire"))
-          .withBody(new Body(new Content(message))))
-
-      ses.sendEmail(request)
+      Email(to, subject, message)
     }
-
   }
 
 }

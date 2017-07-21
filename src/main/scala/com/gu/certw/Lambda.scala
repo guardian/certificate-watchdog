@@ -5,7 +5,9 @@ import java.time.ZonedDateTime
 import com.amazonaws.auth.{ AWSCredentialsProviderChain, DefaultAWSCredentialsProviderChain }
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
 import com.amazonaws.regions.Regions
+import com.amazonaws.services.simpleemail.model._
 import com.amazonaws.services.simpleemail.{ AmazonSimpleEmailService, AmazonSimpleEmailServiceAsyncClientBuilder }
+import com.gu.certw.models.Email
 import com.gu.certw.services.{ CertificateService, DefaultHttpClient }
 
 case class Env(app: String, stack: String, stage: String, prismDomain: String, senderEmail: String) {
@@ -33,16 +35,34 @@ object Lambda extends Logging {
     .build()
 
   val httpClient = new DefaultHttpClient
-  val certificateService = new CertificateService(httpClient, ses)
 
   def handler(): Unit = {
-    logger.info(s"Starting ${Env()}")
+    val env = Env()
+    logger.info(s"Starting $env")
 
-    val certificates = certificateService.listCertificates
-    val expireSoon = certificateService.soonToExpire(certificates, ZonedDateTime.now())
+    val certificates = CertificateService.listCertificates(env, httpClient)
+    val expireSoon = CertificateService.soonToExpire(certificates, ZonedDateTime.now())
     val arns = expireSoon.map(_.arn)
     logger.info(s"Certificates about to expire: $arns")
-    certificateService.sendEmails(expireSoon)
+
+    val emails = CertificateService.generateEmails(expireSoon)
+    sendEmails(ses, emails)
+  }
+
+  def sendEmails(ses: AmazonSimpleEmailService, emails: List[Email]): Unit = {
+    emails.foreach { email =>
+      logger.info(s"Sending email ${email.subject}")
+
+      val request = new SendEmailRequest()
+        .withDestination(new Destination().withToAddresses(email.to))
+        .withSource(Env().senderEmail)
+        .withMessage(new Message()
+          .withSubject(new Content(email.subject))
+          .withBody(new Body(new Content(email.message))))
+
+      ses.sendEmail(request)
+    }
+
   }
 }
 
