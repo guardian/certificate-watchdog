@@ -30,12 +30,17 @@ class CertificateService(httpClient: HttpClient, ses: AmazonSimpleEmailService) 
 
   def soonToExpire(certificates: List[Certificate], now: ZonedDateTime): List[Certificate] = certificates
     .filter(cert => activeOrExpired.contains(cert.status))
-    .filter(_.inUseBy.nonEmpty)
     .filter(_.notAfter.forall(_.isBefore(now.plusDays(29))))
 
   def sendEmails(certificates: List[Certificate]): Unit = {
     certificates.foreach { certificate =>
       val to = s"${certificate.ownerId}@theguardian.com"
+      val resources = if (certificate.inUseBy.isEmpty) {
+        "This certificate isn't currently used by any resources (ELB, ALB ...)"
+      } else {
+        val resourceList = certificate.inUseBy.map(r => s" - $r").mkString("\n")
+        s"Used by the following resources: $resourceList"
+      }
       val message =
         s"""
            |The certificate for the domain ${certificate.domainName} is expired or is about to expire.
@@ -46,7 +51,7 @@ class CertificateService(httpClient: HttpClient, ses: AmazonSimpleEmailService) 
            |Status: ${certificate.status}
            |Owned by: ${certificate.ownerId}
            |Used by the following resources:
-           |${certificate.inUseBy.map(r => s" - $r").mkString("\n")}
+           |$resources
            |
            |Please check if that certicate is still needed and renew it as soon as possible
          """.stripMargin
