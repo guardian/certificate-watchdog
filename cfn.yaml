@@ -26,6 +26,12 @@ Parameters:
   Subnets:
     Description: VPC's subnets
     Type: List<AWS::EC2::Subnet::Id>
+  PrismDomain:
+    Description: Prism domain
+    Type: String
+  SenderEmail:
+    Description: Email to use as a source when sending notifications
+    Type: String
 Resources:
   ExecutionRole:
     Type: AWS::IAM::Role
