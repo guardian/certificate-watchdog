@@ -16,7 +16,10 @@ scalacOptions ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "org.slf4j" % "slf4j-simple" % "1.7.25"
+  "org.slf4j" % "slf4j-simple" % "1.7.25",
+  "com.typesafe.play" %% "play-json" % "2.6.2",
+  "com.amazonaws" % "aws-java-sdk-ses" % "1.11.165",
+  "org.scalatest" %% "scalatest" % "3.0.1" % "test"
 )
 
 enablePlugins(RiffRaffArtifact)
