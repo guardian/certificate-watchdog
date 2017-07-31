@@ -163,7 +163,7 @@ class CertificateServiceSpec extends FlatSpec with Matchers {
       |Please check if this certificate is still needed and renew it as soon as possible
       |""".stripMargin
 
-    val expectedSubject = "[Urgent] SSL/TLS Certificate for somedomain.com is about to expire"
+    val expectedSubject = "[Action required] SSL/TLS Certificate for somedomain.com is about to expire"
     val emails = CertificateService.generateEmails(List(c1))
     emails shouldEqual List(Email("someOwner@theguardian.com", expectedSubject, expectedMessage))
   }
