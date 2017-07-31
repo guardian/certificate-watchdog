@@ -54,7 +54,7 @@ object CertificateService extends Logging {
            |Please check if this certificate is still needed and renew it as soon as possible
            |""".stripMargin
 
-      val subject = s"[Urgent] SSL/TLS Certificate for ${certificate.domainName} is about to expire"
+      val subject = s"[Action required] SSL/TLS Certificate for ${certificate.domainName} is about to expire"
 
       Email(to, subject, message)
     }
