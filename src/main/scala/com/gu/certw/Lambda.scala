@@ -2,9 +2,9 @@ package com.gu.certw
 
 import java.time.ZonedDateTime
 
-import com.amazonaws.auth.{ AWSCredentialsProviderChain, DefaultAWSCredentialsProviderChain }
+import com.amazonaws.auth.{AWSCredentialsProviderChain, DefaultAWSCredentialsProviderChain}
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
-import com.amazonaws.regions.Regions
+import com.amazonaws.regions.Regions.getCurrentRegion
 import com.amazonaws.services.simpleemail.model._
 import com.amazonaws.services.simpleemail.{ AmazonSimpleEmailService, AmazonSimpleEmailServiceAsyncClientBuilder }
 import com.gu.certw.models.Email
@@ -14,16 +14,15 @@ case class Env(app: String, stack: String, stage: String, prismDomain: String, s
   override def toString: String = s"App: $app, Stack: $stack, Stage: $stage"
 }
 
-object Env {
-  def apply(): Env = Env(
+object Lambda extends Logging {
+
+  val envVars: Env = Env(
     Option(System.getenv("App")).getOrElse("DEV"),
     Option(System.getenv("Stack")).getOrElse("DEV"),
     Option(System.getenv("Stage")).getOrElse("DEV"),
     Option(System.getenv("PrismDomain")).get,
-    Option(System.getenv("SenderEmail")).get)
-}
-
-object Lambda extends Logging {
+    Option(System.getenv("SenderEmail")).get
+  )
 
   val credentials = new AWSCredentialsProviderChain(
     new ProfileCredentialsProvider("deployTools"),
@@ -31,16 +30,15 @@ object Lambda extends Logging {
 
   val ses: AmazonSimpleEmailService = AmazonSimpleEmailServiceAsyncClientBuilder.standard()
     .withCredentials(credentials)
-    .withRegion(Regions.EU_WEST_1)
+    .withRegion(getCurrentRegion.getName)
     .build()
 
   val httpClient = new DefaultHttpClient
 
   def handler(): Unit = {
-    val env = Env()
-    logger.info(s"Starting $env")
+    logger.info(s"Starting $envVars")
 
-    val certificates = CertificateService.listCertificates(env, httpClient)
+    val certificates = CertificateService.listCertificates(envVars, httpClient)
     val expireSoon = CertificateService.soonToExpire(certificates, ZonedDateTime.now())
     val arns = expireSoon.map(_.arn)
     logger.info(s"Certificates about to expire: $arns")
@@ -55,7 +53,7 @@ object Lambda extends Logging {
 
       val request = new SendEmailRequest()
         .withDestination(new Destination().withToAddresses(email.to))
-        .withSource(Env().senderEmail)
+        .withSource(envVars.senderEmail)
         .withMessage(new Message()
           .withSubject(new Content(email.subject))
           .withBody(new Body(new Content(email.message))))

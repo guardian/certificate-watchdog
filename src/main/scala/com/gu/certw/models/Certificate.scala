@@ -9,4 +9,5 @@ case class Certificate(
   inUseBy: List[String],
   notAfter: Option[ZonedDateTime],
   ownerId: String,
-  accountName: String)
+  accountName: String
+)
