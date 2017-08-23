@@ -4,11 +4,11 @@ import java.time.ZonedDateTime
 
 import com.amazonaws.auth.{AWSCredentialsProviderChain, DefaultAWSCredentialsProviderChain}
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
-import com.amazonaws.regions.Regions.getCurrentRegion
+import com.amazonaws.regions.Regions
 import com.amazonaws.services.simpleemail.model._
-import com.amazonaws.services.simpleemail.{ AmazonSimpleEmailService, AmazonSimpleEmailServiceAsyncClientBuilder }
+import com.amazonaws.services.simpleemail.{AmazonSimpleEmailService, AmazonSimpleEmailServiceAsyncClientBuilder}
 import com.gu.certw.models.Email
-import com.gu.certw.services.{ CertificateService, DefaultHttpClient }
+import com.gu.certw.services.{CertificateService, DefaultHttpClient}
 
 case class Env(app: String, stack: String, stage: String, prismDomain: String, senderEmail: String) {
   override def toString: String = s"App: $app, Stack: $stack, Stage: $stage"
@@ -30,7 +30,7 @@ object Lambda extends Logging {
 
   val ses: AmazonSimpleEmailService = AmazonSimpleEmailServiceAsyncClientBuilder.standard()
     .withCredentials(credentials)
-    .withRegion(getCurrentRegion.getName)
+    .withRegion(Regions.EU_WEST_1)
     .build()
 
   val httpClient = new DefaultHttpClient
